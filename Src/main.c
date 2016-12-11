@@ -38,39 +38,106 @@ void SystemInit();
 void Init_Timer();
 void Init_GPIO();
 
-void TIM6_DAC_IRQHandler();
-void EXTI0_IRQHandler();
-void SysTick_Handler(void);
-
+void blinkScreen();
 int _write(int file, char *ptr, unsigned int len) {
 	vcp_print(ptr, len);
 	return len;
 }
+
+void TIM6_DAC_IRQHandler();
+void EXTI0_IRQHandler();
+void SysTick_Handler(void);
 
 //
 //
 // -- Code Body -------------
 //
 volatile uint8_t timeUpdated = 0;
+volatile uint8_t buttonPressed = 0;
 volatile uint32_t elapsed = 0;
 
+int32_t randomNumber = 0;
+uint32_t startTime = 0;
+float averageScore = 0;
+unsigned int iterations = 0;
+
 int main() {
-	//SystemInit();
+	//SystemInit(); <- Called by assembly startup file.
 	HAL_Init();
 	vcp_init();
 	Init_Timer();
 	Init_GPIO();
 
+	// Setup random number generation.
+	srand(0);
+
+	blinkScreen();
 	printf("\033[2J\033[;H");
-	printf("\rHowdy all!\a\r\n");
+	printf("\rHowdy all!\r\n");
+
+	printf("\r\n\nWelcome to the game of the century.\r\nWatch the screen, press the button, win everything.\r\n");
+	printf("\r\nPress the button to begin. If you dare.\r\n\n");
+
+	// Wait until user pressed the button.
+	buttonPressed = 0;
+	while(!buttonPressed);
+	buttonPressed = 0;
+
+	randomNumber = elapsed + (rand()%100) + 5;
 	while (1) {
 		if (timeUpdated) {
-			printf("\rTime Running: %u", (unsigned int) elapsed);
-			fflush(stdout);
+			if (randomNumber-elapsed > 0){
+				printf("\033[2J\033[;H");
+				printf("\rWatch carefully, you never know when I'll go!\r\n");
+			} else {
+				startTime = elapsed;
+				blinkScreen();
+
+				// Wait until user pressed the button.
+				buttonPressed = 0;
+				while(!buttonPressed);
+				buttonPressed = 0;
+
+				uint32_t trialTime = elapsed - startTime;
+				averageScore = ((averageScore*iterations) + trialTime)/++iterations;
+
+				printf("\033[2J\033[;H");
+				printf("\r%u00ms not bad, your average reaction time is %d.%ds across %u tries.\n\rHit the button to try again!\r\n",
+						(unsigned int) trialTime,
+						(int)averageScore/10,
+						(int)((averageScore/10-((int)averageScore/10))*100), iterations);
+				fflush(stdout);
+
+				// Wait until user pressed the button.
+				buttonPressed = 0;
+				while(!buttonPressed);
+				buttonPressed = 0;
+
+				// Generate the next number.
+				randomNumber = elapsed + (rand()%100) + 5;
+			}
 			timeUpdated = 0;
 		}
 	}
 }
+
+//
+//
+// -- Utility Functions ------
+//
+void blinkScreen(){
+	printf("\033[30;47m");
+	// Clear and redraw display (flash it).
+	printf("\a\033[s\033[2J\033[u");
+	fflush(stdout);
+	HAL_Delay(100);
+
+	printf("\033[37;40m");
+	// Clear and redraw display (flash it).
+	printf("\033[s\033[2J\033[u");
+	fflush(stdout);
+}
+
 
 //
 //
@@ -172,7 +239,6 @@ void TIM6_DAC_IRQHandler() {
 	// Updated variable to print update.
 	elapsed++;
 	timeUpdated = 1;
-	HAL_IncTick();
 }
 
 void EXTI0_IRQHandler() {
@@ -181,6 +247,8 @@ void EXTI0_IRQHandler() {
 
 	//Toggle GPIO_PIN_5 (LED2)
 	GPIOJ->ODR ^= ((uint16_t) 0x2000U);
+
+	buttonPressed = 1;
 }
 
 void SysTick_Handler(void) {
