@@ -1,5 +1,3 @@
-#include "stm32f7xx_it.h"
-
 // Nice place for the IRQs
 //  Normally if they trigger you wouldn't be able to tell them apart since the all redirect to the same function.
 //  Here we specify unique functions for all of them so it is easier to track.
