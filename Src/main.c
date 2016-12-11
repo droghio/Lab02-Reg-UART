@@ -1,221 +1,182 @@
-/**
- ******************************************************************************
- * @file    HAL/HAL_TimeBase_TIM/Src/main.c
- * @author  MCD Application Team
- * @version V1.0.0
- * @date    22-April-2016
- * @brief   This example describes how to configure HAL time base using
- *          the STM32F7xx HAL API.
- ******************************************************************************
- * @attention
- *
- * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of STMicroelectronics nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************
- */
+//--------------------------
+// Lab 2 - Timer Interrupts
+//--------------------------
+// Objective:
+//   Build a small game that records user's reaction time.
+//
+// Progress:
+//   Timer and interrupts are working, still need to build
+//   game mechanics. LED 2 will blink on and off every 100ms.
+//   LED 1 is controlled via the push button.
+//---------------------------
+// Authors:
+//   Mark Blanco
+//   John Drogo
+//
 
-/* Includes ------------------------------------------------------------------*/
-#include "main.h"
+//
+//
+// -- Imports ---------------
+//
+#include <stdio.h>
+#include <stdlib.h>
 
-/** @addtogroup STM32F7xx_HAL_Examples
- * @{
- */
+// CMSIS Header, defines register structure.
+#include "stm32f769xx.h"
+// CMSIS Header, defines SystemInit function.
+#include "system_stm32f7xx.h"
 
-/** @addtogroup HAL_TimeBase_TIM
- * @{
- */
+// Init HAL for UART
+#include "stm32f7xx_hal_conf.h"
+#include "vcp.h"
 
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-uint32_t uwIncrementState = 0;
-/* Private function prototypes -----------------------------------------------*/
-static void SystemClock_Config(void);
-static void CPU_CACHE_Enable(void);
-
-/* Private functions ---------------------------------------------------------*/
-
-/**
- * @brief  Main program
- * @param  None
- * @retval None
- */
-int main(void) {
-	/* This sample code shows how to configure The HAL time base source base with a
-	 dedicated  Tick interrupt priority.
-	 A general purpose timer (TIM6) is used instead of Systick as source of time base.
-	 Time base duration is fixed to 1ms since PPP_TIMEOUT_VALUEs are defined and
-	 handled in milliseconds basis.
-	 */
-
-	/* Enable the CPU Cache */
-	//CPU_CACHE_Enable();
-
-	/* STM32F7xx HAL library initialization:
-	 - Configure the Flash prefetch
-	 - Configure timer (TIM6) to generate an interrupt each 1 msec
-	 - Set NVIC Group Priority to 4
-	 - Low Level Initialization
-	 */
-	HAL_Init();
-
-	/* Configure the system clock to 216 MHz */
-	SystemClock_Config();
-
-	/* Configure LED2 */
-	BSP_LED_Init(LED2);
-
-	/* Configure Tamper push-button */
-	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
-
-	/* Insert a Delay of 1000 ms and toggle LED2, in an infinite loop */
-	while (1) {
-		/* Insert a 1s delay */
-		HAL_Delay(1000);
-
-		/* Toggle LED2 */
-		BSP_LED_Toggle(LED2);
+//
+//
+// -- Function Defines ------
+//
+void SystemInit();
+void Init_Timer();
+void Init_GPIO();
+void TIM6_DAC_IRQHandler();
+void EXTI0_IRQHandler();
+int _write(int file, char *ptr, unsigned int len) {
+	for (int i = 0; i < len+1; i+=2){
+		vcp_print(ptr+i, 2);
+		for (int j = 0; j < 1000; j++) asm("nop");
 	}
+	return len;
 }
 
-/**
- * @brief EXTI line detection callback.
- * @param GPIO_Pin: Specifies the pins connected EXTI line
- * @retval None
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	if (GPIO_Pin == USER_BUTTON_PIN) {
-		if (uwIncrementState == 0) {
-			/* Suspend tick increment */
-			HAL_SuspendTick();
+//
+//
+// -- Code Body -------------
+//
+volatile uint8_t timeUpdated = 0;
+volatile uint32_t elapsed = 0;
 
-			/* Change the Push button state */
-			uwIncrementState = 1;
-		} else {
-			/* Resume tick increment */
-			HAL_ResumeTick();
+int main() {
+	//SystemInit();
+	HAL_Init();
+	vcp_init();
+	Init_Timer();
+	Init_GPIO();
 
-			/* Change the Push button state */
-			uwIncrementState = 0;
+	printf("Howdy all!\r\n  ");
+	while (1) {
+		if (timeUpdated) {
+			printf("Time Running: %u\r\n  ", (unsigned int) elapsed);
+			timeUpdated = 0;
 		}
 	}
 }
 
-/**
- * @brief  System Clock Configuration
- *         The system Clock is configured as follow :
- *            System Clock source            = PLL (HSE)
- *            SYSCLK(Hz)                     = 216000000
- *            HCLK(Hz)                       = 216000000
- *            AHB Prescaler                  = 1
- *            APB1 Prescaler                 = 4
- *            APB2 Prescaler                 = 2
- *            HSE Frequency(Hz)              = 25000000
- *            PLL_M                          = 25
- *            PLL_N                          = 432
- *            PLL_P                          = 2
- *            PLL_Q                          = 9
- *            PLL_R                          = 7
- *            VDD(V)                         = 3.3
- *            Main regulator output voltage  = Scale1 mode
- *            Flash Latency(WS)              = 7
- * @param  None
- * @retval None
- */
-static void SystemClock_Config(void) {
-	RCC_ClkInitTypeDef RCC_ClkInitStruct;
-	RCC_OscInitTypeDef RCC_OscInitStruct;
-	HAL_StatusTypeDef ret = HAL_OK;
-
-	/* Enable Power Control clock */
-	__HAL_RCC_PWR_CLK_ENABLE()
-	;
-
-	/* The voltage scaling allows optimizing the power consumption when the device is
-	 clocked below the maximum system frequency, to update the voltage scaling value
-	 regarding system frequency refer to product datasheet.  */
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-	/* Enable HSE Oscillator and activate PLL with HSE as source */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLM = 25;
-	RCC_OscInitStruct.PLL.PLLN = 432;
-	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-	RCC_OscInitStruct.PLL.PLLQ = 9;
-	RCC_OscInitStruct.PLL.PLLR = 7;
-
-	ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-	if (ret != HAL_OK) {
-		while (1)
-			;
-	}
-
-	/* Activate the OverDrive to reach the 216 MHz Frequency */
-	ret = HAL_PWREx_EnableOverDrive();
-	if (ret != HAL_OK) {
-		while (1)
-			;
-	}
-
-	/* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
-	RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-
-	ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7);
-	if (ret != HAL_OK) {
-		while (1)
-			;
-	}
-}
-/**
- * @brief  CPU L1-Cache enable.
- * @param  None
- * @retval None
- */
-static void CPU_CACHE_Enable(void) {
-	/* Enable I-Cache */
-	SCB_EnableICache();
-
-	/* Enable D-Cache */
-	SCB_EnableDCache();
+//
+//
+// -- Init Functions ----------
+//
+void SystemInit() {
+	// Enable FPU, set CP10 and CP11 Full Access
+	SCB->CPACR |= ((3UL << 10 * 2) | (3UL << 11 * 2));
+	// Reset the RCC clock configuration
+	// Set HSION bit
+	RCC->CR |= (uint32_t) 0x00000001;
+	// Reset CFGR register
+	RCC->CFGR = 0x00000000;
+	// Reset HSEON, CSSON and PLLON bits
+	RCC->CR &= (uint32_t) 0xFEF6FFFF;
+	// Reset PLLCFGR register
+	RCC->PLLCFGR = 0x24003010;
+	// Reset HSEBYP bit
+	RCC->CR &= (uint32_t) 0xFFFBFFFF;
+	// Disable all interrupts
+	RCC->CIR = 0x00000000;
+	// Vector Table Relocation in Internal FLASH
+	SCB->VTOR = FLASH_BASE;
 }
 
-/**
- * @}
- */
+void Init_Timer() {
+	// Enable the TIM6 interrupt.
+	// Looks like HAL hid this little gem, this register isn't mentioned in
+	//   the STM32F7 ARM Reference Manual....
+	NVIC->ISER[TIM6_DAC_IRQn / 32U] = (uint32_t) (1UL
+			<< (((uint32_t) TIM6_DAC_IRQn) & 0x1FUL));
 
-/**
- * @}
- */
+	// Enable TIM6 clock
+	RCC->APB1ENR |= RCC_APB1ENR_TIM6EN;
+	asm ( "nop" );
+	asm ( "nop" );
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+	// Set pre-scaler to make a 100kHz ticker.
+	TIM6->PSC = (uint32_t) ((SystemCoreClock / 100000U) - 1U);
+
+	// Set the Auto-reload Value for 10Hz overflow
+	TIM6->ARR = (100000U / 10U) - 1U;
+
+	// Enable Update Interrupts.
+	TIM6->EGR = TIM_EGR_UG;
+
+	TIM6->DIER |= TIM_DIER_UIE;
+	TIM6->CR1 |= TIM_CR1_CEN;
+}
+
+void Init_GPIO() {
+	// Enable GPIO clocks?
+	// Looks like GPIO reg updates are synced to a base clock.
+	//  for any changes to appear the clocks need to be running.
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOJEN;
+	// Delay after an RCC peripheral clock enabling
+	asm ("nop");
+	asm ("nop");
+
+	// Set Pin 13 to output. LED1
+	GPIOJ->MODER |= GPIO_MODER_MODER13
+			& (GPIO_MODER_MODER13 - (GPIO_MODER_MODER13 >> 1));
+
+	// Set Pin 13 to output. LED2
+	GPIOJ->MODER |= GPIO_MODER_MODER5
+			& (GPIO_MODER_MODER5 - (GPIO_MODER_MODER5 >> 1));
+
+	// GPIO Interrupt
+	// By default pin 0 will trigger the interrupt,
+	//  so no need to mess with SYSCFG_EXTICR1.
+
+	// Set Pin 0 as input (button) with pull-up.
+	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0
+			& (GPIO_PUPDR_PUPDR0 - (GPIO_PUPDR_PUPDR0 >> 1));
+
+	// Set interrupt enable for EXTI0.
+	NVIC->ISER[EXTI0_IRQn / 32U] = (uint32_t) (1UL
+			<< (((uint32_t) EXTI0_IRQn) & 0x1FUL));
+
+	// Unmask interrupt.
+	EXTI->IMR |= EXTI_IMR_MR0;
+
+	// Register for rising edge.
+	EXTI->RTSR |= EXTI_RTSR_TR0;
+}
+
+//
+//
+// -- ISRs (IRQs) -------------
+//
+void TIM6_DAC_IRQHandler() {
+	// Clear Interrupt Bit
+	TIM6->SR = ~TIM_DIER_UIE;
+
+	//Toggle GPIO_PIN_13 (LED1)
+	GPIOJ->ODR ^= ((uint16_t) 0x0020U);
+
+	// Updated variable to print update.
+	elapsed++;
+	timeUpdated = 1;
+	HAL_IncTick();
+}
+
+void EXTI0_IRQHandler() {
+	// Clear Interrupt Bit (by setting it, weird I know).
+	EXTI->PR |= EXTI_PR_PR0;
+
+	//Toggle GPIO_PIN_5 (LED2)
+	GPIOJ->ODR ^= ((uint16_t) 0x2000U);
+}

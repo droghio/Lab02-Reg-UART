@@ -15,6 +15,6 @@
 "Drivers/STM32F7xx_HAL_Driver/stm32f7xx_hal_tim_ex.o"
 "Drivers/STM32F7xx_HAL_Driver/stm32f7xx_hal_uart.o"
 "Example/SW4STM32/startup_stm32f769xx.o"
+"Example/User/init.o"
 "Example/User/main.o"
-"Example/User/stm32f7xx_hal_timebase_tim.o"
-"Example/User/stm32f7xx_it.o"
+"Example/User/vcp.o"
