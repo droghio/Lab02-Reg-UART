@@ -112,10 +112,11 @@ int main() {
 
 				// See how long they hold the reset button down.
 				//  If they hold it for more than 5 seconds reset the system.
-				startTime = elapsed;
 				buttonPressed = 0;
 				while(!buttonPressed);
 				buttonPressed = 0;
+				startTime = elapsed;
+
 				buttonReleased = 0;
 				while(!buttonReleased){
 					if (elapsed - startTime > 50){
