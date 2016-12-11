@@ -54,6 +54,7 @@ void SysTick_Handler(void);
 //
 volatile uint8_t timeUpdated = 0;
 volatile uint8_t buttonPressed = 0;
+volatile uint8_t buttonReleased = 0;
 volatile uint32_t elapsed = 0;
 
 int32_t randomNumber = 0;
@@ -75,7 +76,7 @@ int main() {
 	printf("\033[2J\033[;H");
 	printf("\rHowdy all!\r\n");
 
-	printf("\r\n\nWelcome to the game of the century.\r\nWatch the screen, press the button, win everything.\r\n");
+	printf("\r\nWelcome to the game of the century.\r\nWatch the screen, press the button, win everything.\r\n");
 	printf("\r\nPress the button to begin. If you dare.\r\n\n");
 
 	// Wait until user pressed the button.
@@ -98,6 +99,7 @@ int main() {
 				while(!buttonPressed);
 				buttonPressed = 0;
 
+				// Calculate their new score.
 				uint32_t trialTime = elapsed - startTime;
 				averageScore = ((averageScore*iterations) + trialTime)/++iterations;
 
@@ -108,10 +110,24 @@ int main() {
 						(int)((averageScore/10-((int)averageScore/10))*100), iterations);
 				fflush(stdout);
 
-				// Wait until user pressed the button.
+				// See how long they hold the reset button down.
+				//  If they hold it for more than 5 seconds reset the system.
+				startTime = elapsed;
 				buttonPressed = 0;
 				while(!buttonPressed);
 				buttonPressed = 0;
+				buttonReleased = 0;
+				while(!buttonReleased){
+					if (elapsed - startTime > 50){
+						printf("\r\nClearing scores and resetting game.\r\n");
+						fflush(stdout);
+						HAL_Delay(1000);
+						// Reset the system.
+						SCB->AIRCR = (0x5FA<<SCB_AIRCR_VECTKEY_Pos)|SCB_AIRCR_SYSRESETREQ_Msk;
+						while(1);
+					}
+				};
+				buttonReleased = 0;
 
 				// Generate the next number.
 				randomNumber = elapsed + (rand()%100) + 5;
@@ -210,7 +226,7 @@ void Init_GPIO() {
 	// By default pin 0 will trigger the interrupt,
 	//  so no need to mess with SYSCFG_EXTICR1.
 
-	// Set Pin 0 as input (button) with pull-up.
+	// Set Pin 0 as input (button) with pull-down.
 	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0
 			& (GPIO_PUPDR_PUPDR0 - (GPIO_PUPDR_PUPDR0 >> 1));
 
@@ -223,6 +239,9 @@ void Init_GPIO() {
 
 	// Register for rising edge.
 	EXTI->RTSR |= EXTI_RTSR_TR0;
+
+	// And register for the falling edge.
+	EXTI->FTSR |= EXTI_FTSR_TR0;
 }
 
 //
@@ -242,13 +261,20 @@ void TIM6_DAC_IRQHandler() {
 }
 
 void EXTI0_IRQHandler() {
+	if (GPIOA->IDR & 0x1){
+		// Button is pressed!
+
+		//Toggle GPIO_PIN_5 (LED2)
+		GPIOJ->ODR ^= ((uint16_t) 0x2000U);
+
+		buttonPressed = 1;
+	} else {
+		// Button is released.
+		buttonReleased = 1;
+	}
+
 	// Clear Interrupt Bit (by setting it, weird I know).
 	EXTI->PR |= EXTI_PR_PR0;
-
-	//Toggle GPIO_PIN_5 (LED2)
-	GPIOJ->ODR ^= ((uint16_t) 0x2000U);
-
-	buttonPressed = 1;
 }
 
 void SysTick_Handler(void) {
