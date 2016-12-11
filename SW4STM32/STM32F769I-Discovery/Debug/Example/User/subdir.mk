@@ -6,16 +6,19 @@
 C_SRCS += \
 ../Example/User/init.c \
 C:/Users/John/Downloads/starting-pack/common/STM32Cube_FW_F7_V1.4.0/Projects/STM32F769I-Discovery/Examples/HAL/Lab02-Reg+UART/Src/main.c \
+../Example/User/stm32f7xx_it.c \
 ../Example/User/vcp.c 
 
 OBJS += \
 ./Example/User/init.o \
 ./Example/User/main.o \
+./Example/User/stm32f7xx_it.o \
 ./Example/User/vcp.o 
 
 C_DEPS += \
 ./Example/User/init.d \
 ./Example/User/main.d \
+./Example/User/stm32f7xx_it.d \
 ./Example/User/vcp.d 
 
 

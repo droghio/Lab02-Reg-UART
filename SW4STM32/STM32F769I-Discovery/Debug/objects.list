@@ -17,4 +17,5 @@
 "Example/SW4STM32/startup_stm32f769xx.o"
 "Example/User/init.o"
 "Example/User/main.o"
+"Example/User/stm32f7xx_it.o"
 "Example/User/vcp.o"
