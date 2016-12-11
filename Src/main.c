@@ -37,25 +37,13 @@
 void SystemInit();
 void Init_Timer();
 void Init_GPIO();
+
 void TIM6_DAC_IRQHandler();
 void EXTI0_IRQHandler();
-void NMI_Handler(void);
-void HardFault_Handler(void);
-void MemManage_Handler(void);
-void BusFault_Handler(void);
-void UsageFault_Handler(void);
-void SVC_Handler(void);
-void DebugMon_Handler(void);
-void PendSV_Handler(void);
 void SysTick_Handler(void);
-void EXTI0_IRQHandler(void);
 
-void USART1_IRQHandler();
 int _write(int file, char *ptr, unsigned int len) {
-	vcp_print(ptr, len-1);
-	//for (int i = 0; i < len+1; i+=2){
-	//	vcp_print(ptr+i, 2);
-	//}
+	vcp_print(ptr, len);
 	return len;
 }
 
@@ -73,10 +61,12 @@ int main() {
 	Init_Timer();
 	Init_GPIO();
 
-	printf("Howdy all!\r\n  ");
+	printf("\033[2J\033[;H");
+	printf("\rHowdy all!\a\r\n");
 	while (1) {
 		if (timeUpdated) {
-			printf("Time Running: %u\r\n  ", (unsigned int) elapsed);
+			printf("\rTime Running: %u", (unsigned int) elapsed);
+			fflush(stdout);
 			timeUpdated = 0;
 		}
 	}
@@ -149,13 +139,6 @@ void Init_GPIO() {
 	GPIOJ->MODER |= GPIO_MODER_MODER5
 			& (GPIO_MODER_MODER5 - (GPIO_MODER_MODER5 >> 1));
 
-	// Set Pin 9 to output. TX
-	GPIOJ->MODER |= GPIO_MODER_MODER9
-			& (GPIO_MODER_MODER9 - (GPIO_MODER_MODER9 >> 1));
-
-
-	//0x0200U
-
 	// GPIO Interrupt
 	// By default pin 0 will trigger the interrupt,
 	//  so no need to mess with SYSCFG_EXTICR1.
@@ -200,105 +183,7 @@ void EXTI0_IRQHandler() {
 	GPIOJ->ODR ^= ((uint16_t) 0x2000U);
 }
 
-void USART1_IRQHandler(){
-	asm("nop");
-	while (1);
-	return;
-}
-
-void HardFault_Handler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void WWDG_IRQHandler(){
-	asm("nop");
-	while (1);
-	return;
-}
-
-void USART6_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void USART3_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void USART2_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void UART8_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void UART7_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void UART5_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void UART4_IRQHandler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void UsageFault_Handler() {
-	asm("nop");
-	while (1);
-	return;
-}
-
-void NMI_Handler(void) {
-	asm("nop");
-	while (1);
-	return;
-}
-void MemManage_Handler(void) {
-	asm("nop");
-	while (1);
-	return;
-}
-void BusFault_Handler(void) {
-	asm("nop");
-	while (1);
-	return;
-}
-void SVC_Handler(void) {
-	asm("nop");
-	while (1);
-	return;
-}
-void DebugMon_Handler(void) {
-	asm("nop");
-	while (1);
-	return;
-}
-void PendSV_Handler(void) {
-	asm("nop");
-	while (1);
-	return;
-}
 void SysTick_Handler(void) {
 	HAL_IncTick();
-	//asm("nop");
-	//while (1);
 	return;
 }

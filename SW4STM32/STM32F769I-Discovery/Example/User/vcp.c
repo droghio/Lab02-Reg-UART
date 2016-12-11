@@ -104,7 +104,7 @@ void vcp_puts(char * string) {
 // useful for strings that are not null terminated but the size is known.
 void vcp_print(char * string, uint8_t length) {
 	if (length > 0)
-		if (HAL_UART_Transmit(&UartHandle, (uint8_t *) string, length, 100)
+		if (HAL_UART_Transmit(&UartHandle, (uint8_t *) string, length, 1000)
 				!= HAL_OK)
 			Default_Error_Message();
 }
